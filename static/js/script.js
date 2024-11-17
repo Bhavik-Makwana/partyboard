@@ -215,7 +215,7 @@ saveBtn.addEventListener('click', () => {
         .then(response => response.json())
         .then(data => {
             if (data.success) {
-                alert('Drawing saved successfully!');
+                window.location.href = '/submit';
             } else {
                 alert('Error saving drawing');
             }
