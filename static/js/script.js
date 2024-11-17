@@ -7,12 +7,23 @@ const brushSize = document.getElementById('brushSize');
 const undoBtn = document.getElementById('undo');
 const redoBtn = document.getElementById('redo');
 const fillBtn = document.getElementById('fillBtn');
+const brushSizeDisplay = document.getElementById('brushSizeDisplay');
+const coordsDisplay = document.getElementById('coordsDisplay');
+const cursorCanvas = document.createElement('canvas');
+const cursorCtx = cursorCanvas.getContext('2d');
 
 let isDrawing = false;
 let lastX = 0;
 let lastY = 0;
 const undoStack = [];
 let currentStateIndex = -1;
+let currentCanvasState = null;
+
+cursorCanvas.style.position = 'absolute';
+cursorCanvas.style.pointerEvents = 'none';
+cursorCanvas.style.top = canvas.offsetTop + 'px';
+cursorCanvas.style.left = canvas.offsetLeft + 'px';
+canvas.parentElement.appendChild(cursorCanvas);
 
 function saveState() {
     if (currentStateIndex < undoStack.length - 1) {
@@ -37,12 +48,23 @@ function getTouchPos(touchEvent) {
     };
 }
 
+function getMousePos(canvas, evt) {
+    const rect = canvas.getBoundingClientRect();
+    console.log(evt.clientX - rect.left - 5, evt.clientY - rect.top);
+    return {
+        x: evt.clientX - rect.left ,
+        y: evt.clientY - rect.top
+    };
+}
+
 function draw(e) {
     if (!isDrawing) return;
     
     const pos = e.type.includes('mouse') 
-        ? { x: e.offsetX, y: e.offsetY }
+        ? getMousePos(canvas, e)
         : getTouchPos(e);
+    
+    currentCanvasState = ctx.getImageData(0, 0, canvas.width, canvas.height);
     
     ctx.beginPath();
     ctx.moveTo(lastX, lastY);
@@ -253,6 +275,11 @@ function resizeCanvas() {
     canvas.width = container.clientWidth - 20;
     canvas.height = window.innerHeight - 100;
     
+    cursorCanvas.width = canvas.width;
+    cursorCanvas.height = canvas.height;
+    cursorCanvas.style.top = canvas.offsetTop + 'px';
+    cursorCanvas.style.left = canvas.offsetLeft + 'px';
+    
     if (undoStack.length > 0) {
         const img = new Image();
         img.src = undoStack[currentStateIndex];
@@ -267,6 +294,7 @@ window.addEventListener('resize', resizeCanvas);
 resizeCanvas();
 
 function floodFill(startX, startY, fillColor) {
+    // Check if we're trying to fill an empty canvas
     const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
     const pixels = imageData.data;
     
@@ -276,6 +304,14 @@ function floodFill(startX, startY, fillColor) {
     const startG = pixels[startPos + 1];
     const startB = pixels[startPos + 2];
     const startA = pixels[startPos + 3];
+    
+    // If the canvas is empty (all pixels transparent), fill the entire canvas directly
+    if (startR === 0 && startG === 0 && startB === 0 && startA === 0) {
+        ctx.fillStyle = fillColor;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        saveState();
+        return;
+    }
     
     // Convert fill color from hex to RGB
     const fillColorEl = document.createElement('div');
@@ -292,21 +328,51 @@ function floodFill(startX, startY, fillColor) {
                pixels[pos + 3] === startA;
     }
 
-    // Add flood fill algorithm
-    const pixelsToCheck = [[startX, startY]];
-    while (pixelsToCheck.length > 0) {
-        const [x, y] = pixelsToCheck.pop();
-        const currentPos = (y * canvas.width + x) * 4;
-
+    // Use a queue instead of recursion for better performance
+    const queue = [];
+    queue.push(startX, startY);
+    
+    while (queue.length > 0) {
+        const y = queue.pop();
+        const x = queue.pop();
+        
+        let currentPos = (y * canvas.width + x) * 4;
+        
         if (x < 0 || x >= canvas.width || y < 0 || y >= canvas.height) continue;
         if (!matchesStart(currentPos)) continue;
-
-        pixels[currentPos] = r;
-        pixels[currentPos + 1] = g;
-        pixels[currentPos + 2] = b;
-        pixels[currentPos + 3] = 255;
-
-        pixelsToCheck.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
+        
+        // Find the leftmost and rightmost pixels to fill on this line
+        let left = x;
+        let right = x;
+        
+        // Move left
+        while (left > 0 && matchesStart((y * canvas.width + (left - 1)) * 4)) {
+            left--;
+        }
+        
+        // Move right
+        while (right < canvas.width - 1 && matchesStart((y * canvas.width + (right + 1)) * 4)) {
+            right++;
+        }
+        
+        // Fill the line
+        for (let i = left; i <= right; i++) {
+            currentPos = (y * canvas.width + i) * 4;
+            pixels[currentPos] = r;
+            pixels[currentPos + 1] = g;
+            pixels[currentPos + 2] = b;
+            pixels[currentPos + 3] = 255;
+        }
+        
+        // Check pixels above and below the filled line
+        for (let i = left; i <= right; i++) {
+            if (y > 0 && matchesStart(((y - 1) * canvas.width + i) * 4)) {
+                queue.push(i, y - 1);
+            }
+            if (y < canvas.height - 1 && matchesStart(((y + 1) * canvas.width + i) * 4)) {
+                queue.push(i, y + 1);
+            }
+        }
     }
 
     ctx.putImageData(imageData, 0, 0);
@@ -316,3 +382,65 @@ function floodFill(startX, startY, fillColor) {
 fillBtn.addEventListener('click', () => {
     fillBtn.classList.toggle('active');
 });
+
+// Update brush size display
+brushSize.addEventListener('input', (e) => {
+    brushSizeDisplay.textContent = `${e.target.value}px`;
+});
+
+// Update coordinates display and draw cursor
+canvas.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    coordsDisplay.textContent = `X: ${Math.round(x)}, Y: ${Math.round(y)}`;
+    
+    // Redraw the canvas and add a circle cursor
+    // (Add this part where you handle your canvas drawing)
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize.value/2, 0, Math.PI * 2);
+    ctx.stroke();
+    updateBrushPreview(e);
+});
+
+// Make sure cursor is hidden when leaving canvas
+canvas.addEventListener('mouseleave', () => {
+    coordsDisplay.textContent = 'X: 0, Y: 0';
+});
+
+function updateBrushPreview(e) {
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    
+    ctx.save();
+    // Clear the previous frame
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Redraw your saved canvas state here if you have one
+    
+    // Draw the brush preview circle
+    ctx.beginPath();
+    ctx.arc(x, y, brushSize/2, 0, Math.PI * 2);
+    ctx.strokeStyle = currentColor;
+    ctx.stroke();
+    ctx.restore();
+}
+
+function drawBrushPreview(e) {
+    if (isDrawing) return; // Don't show preview while drawing
+    
+    const rect = canvas.getBoundingClientRect();
+    const x = e.clientX - rect.left +30;
+    const y = e.clientY - rect.top;
+    
+    // Clear the cursor canvas
+    cursorCtx.clearRect(0, 0, cursorCanvas.width, cursorCanvas.height);
+    
+    // Draw the brush preview circle on the cursor canvas
+    cursorCtx.beginPath();
+    cursorCtx.arc(x, y, brushSize.value/2, 0, Math.PI * 2);
+    cursorCtx.strokeStyle = colorPicker.value;
+    cursorCtx.stroke();
+}
+
+canvas.addEventListener('mousemove', drawBrushPreview);

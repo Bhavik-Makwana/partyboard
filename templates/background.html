@@ -1,3 +1,6 @@
+{% extends "base.html" %}
+
+{% block content %}
 <!DOCTYPE html>
 <html>
 <head>
@@ -48,6 +51,7 @@
     </style>
 </head>
 <body>
+
     <div class="upload-container">
         <input type="file" id="imageUpload" name="image" accept="image/*" style="display: none;">
         <button class="upload-button" id="uploadBtn">Upload New Background</button>
@@ -131,3 +135,4 @@
     </script>
 </body>
 </html>
+{% endblock %}

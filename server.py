@@ -82,23 +82,39 @@ def background():
 
 @app.route('/background/upload', methods=['POST'])
 def upload_background():
-    if 'image' not in request.files:
-        return jsonify({'error': 'No file part'}), 400
-    file = request.files['image']
-    if file.filename == '':
-        return jsonify({'error': 'No selected file'}), 400
-    if file and allowed_file(file.filename):
-        filename = secure_filename(file.filename)
-        file.save(os.path.join('static', 'background', filename))
+    try:
+        if 'image' not in request.files:
+            return jsonify({'error': 'No file part'}), 400
         
-        # Store in SQLite database
-        with sqlite3.connect('partyboard.db') as conn:
-            c = conn.cursor()
-            c.execute('INSERT INTO background_images (path) VALUES (?)', (filename,))
-            conn.commit()
+        file = request.files['image']
+        if file.filename == '':
+            return jsonify({'error': 'No selected file'}), 400
             
-        return jsonify({'success': True})
-    return jsonify({'error': 'Invalid file type'}), 400
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            
+            # Ensure directory exists
+            upload_dir = os.path.join('static', 'background')
+            os.makedirs(upload_dir, exist_ok=True)
+            
+            # Save file
+            file_path = os.path.join(upload_dir, filename)
+            file.save(file_path)
+            
+            # Store in SQLite database
+            with sqlite3.connect('partyboard.db') as conn:
+                c = conn.cursor()
+                c.execute('INSERT INTO background_images (path) VALUES (?)', (filename,))
+                conn.commit()
+                
+            return jsonify({'success': True, 'filename': filename})
+            
+        return jsonify({'error': 'Invalid file type'}), 400
+        
+    except Exception as e:
+        # Log the error (you might want to use proper logging)
+        print(f"Error in upload_background: {str(e)}")
+        return jsonify({'error': 'Server error occurred'}), 500
 
 # Initialize SQLite database
 def init_db():
