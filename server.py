@@ -15,6 +15,7 @@ def allowed_file(filename):
 
 # Serve static files
 @app.route('/')
+@app.route('/home')
 def index():
     return render_template('index.html')
 
