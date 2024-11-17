@@ -69,8 +69,27 @@ def serve_js(path):
 
 @app.route('/image_ids')
 def image_ids():
-    drawings_dir = os.path.join('assets', 'drawings')
-    return jsonify(os.listdir(drawings_dir))
+    with sqlite3.connect('partyboard.db') as conn:
+        c = conn.cursor()
+        c.execute('SELECT path FROM drawings WHERE blacklisted = FALSE')
+        drawings = c.fetchall()
+        print(drawings)
+        # Extract paths from tuples
+        drawings_list = [drawing[0] for drawing in drawings]
+
+    return jsonify(drawings_list)
+
+@app.route('/image_ids_blacklisted')
+def image_ids_blacklisted():
+    with sqlite3.connect('partyboard.db') as conn:
+        c = conn.cursor()
+        c.execute('SELECT path FROM drawings WHERE blacklisted = TRUE')
+        drawings = c.fetchall()
+        print(drawings)
+        # Extract paths from tuples
+        drawings_list = [drawing[0] for drawing in drawings]
+
+    return jsonify(drawings_list)
 
 @app.route('/background')
 def background():

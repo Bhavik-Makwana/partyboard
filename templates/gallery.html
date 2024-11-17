@@ -132,7 +132,7 @@
 
         // Load and initialize images
         window.onload = async function() {
-            const bouncingImages = [];
+            let bouncingImages = [];
             let knownImageIds = new Set();
             
             // Add background polling function
@@ -181,18 +181,35 @@
             async function loadNewImages() {
                 const response = await fetch('/image_ids');
                 const imageIds = await response.json();
-                
+                const responseBlacklisted = await fetch('/image_ids_blacklisted');
+                const blacklistedImageIds = await responseBlacklisted.json();
                 // Add only new images
                 imageIds.forEach(filename => {
                     if (!knownImageIds.has(filename)) {
-                        const src = `/assets/drawings/${filename}`;
+                        const src = `${filename}`;
                         const img = new BouncingImage(src, document.body);
                         img.size *= 2; // Double the size
                         img.img.style.width = img.size + 'px';
-                        bouncingImages.push(img);
+                        bouncingImages.push({filename: filename, img: img});
                         knownImageIds.add(filename);
                     }
                 });
+                console.log(blacklistedImageIds);
+                blacklistedImageIds.forEach(filename => {
+                    if (knownImageIds.has(filename)) {
+                        knownImageIds.delete(filename);
+                        // Find and remove the blacklisted image from bouncingImages array
+                        const index = bouncingImages.findIndex(img => img.filename === filename);
+                        if (index > -1) {
+                            // Remove the DOM element
+                            bouncingImages[index].img.img.remove();
+                            // Remove from array
+                            bouncingImages.splice(index, 1);
+                        }
+                    }
+                });
+                console.log(bouncingImages);
+                console.log(knownImageIds);
             }
             
             // Initial load
@@ -203,7 +220,7 @@
             
             // Animation loop
             function animate() {
-                bouncingImages.forEach(img => img.update());
+                bouncingImages.forEach(img => img.img.update());
                 requestAnimationFrame(animate);
             }
             
