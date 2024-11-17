@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Image Dashboard</h2>
+    
+    <div class="row row-cols-1 row-cols-md-3 g-4">
+        {% for drawing in drawings %}
+        <div class="col" id="card-image-{{ drawing.0 }}">
+            <div class="card h-100">
+                    <img src="{{ drawing.1 }}" class="card-img-top" alt="Uploaded image">
+                <div class="card-body">
+                    <p class="card-text">Uploaded: {{ drawing.2 }}</p>
+                    <button type="button" 
+                            class="remove-btn btn btn-primary"
+                            id="image-{{ drawing.id }}"
+                            {% if drawing.blacklisted %}disabled{% endif %}
+                            onclick="updateImageStatus({{ drawing.0 }})">
+                        Mark as processed
+                    </button>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function updateImageStatus(imageId) {
+    console.log(`Updating status for image ${imageId}`);
+    fetch('/blacklist', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ id: imageId, blacklisted: false })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            // Find and remove the parent card element
+            const card = document.getElementById(`card-image-${imageId}`);
+            card.remove();
+            console.log('Image removed successfully');
+        } else {
+            console.error('Failed to update image status');
+        }
+    });
+}
+</script>
+{% endblock %}

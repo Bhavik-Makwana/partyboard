@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bouncing Gallery</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-size: cover;
+            position: relative;
+            min-height: 100vh;
+            background-position: center center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            -webkit-background-size: cover;
+            -moz-background-size: cover;
+            -o-background-size: cover;
+        }
+
+        /* Add Santa's sleigh */
+        body::before {
+            content: 'Merry Christmas! 🎅🛷🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌 Merry Christmas! ';
+            font-family: 'Arial', sans-serif;
+            color: red;
+            position: absolute;
+            font-size: 40px;
+            animation: flyAcross 20s linear infinite;
+            white-space: nowrap;  /* Keep emojis in a single line */
+        }
+
+        @keyframes flyAcross {
+            0% {
+                left: -50%;
+                top: 15%;
+            }
+            100% {
+                left: 100%;
+                top: calc(15% + var(--santa-offset, 0px));
+            }
+        }
+
+        /* Keep existing bouncing-image style */
+        .bouncing-image {
+            position: absolute;
+            user-select: none;
+        }
+
+        /* Add watermark style */
+        .watermark {
+            position: fixed;
+            bottom: 10px;
+            right: 10px;
+            font-family: 'Arial', sans-serif;
+            font-size: 16px;
+            color: rgba(255, 255, 255, 0.5);
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            pointer-events: none;
+        }
+    </style>
+</head>
+<body>
+    <!-- Add watermark div -->
+    <div class="watermark">PartyBoard</div>
+    <script>
+        class BouncingImage {
+            constructor(src, container) {
+                this.img = new Image();
+                this.img.src = src;
+                this.img.className = 'bouncing-image';
+                this.container = container;
+                
+                // Random initial position
+                this.x = Math.random() * (window.innerWidth - 100);
+                this.y = Math.random() * (window.innerHeight - 100);
+                
+                // Random speed (-5 to 5)
+                this.dx = (Math.random() - 0.5) * 5;
+                this.dy = (Math.random() - 0.5) * 5;
+                
+                // Random size between 50 and 150 pixels
+                this.size = 50 + Math.random() * 100;
+                
+                this.img.style.width = this.size + 'px';
+                this.img.style.height = 'auto';
+                
+                container.appendChild(this.img);
+            }
+            
+            update() {
+                // Randomly change speed (0.5% chance per frame)
+                if (Math.random() < 0.005) {
+                    this.dx = (Math.random() - 0.5) * 5;
+                    this.dy = (Math.random() - 0.5) * 5;
+                }
+                
+                // Update position
+                this.x += this.dx;
+                this.y += this.dy;
+                
+                // Bounce off walls
+                if (this.x <= 0 || this.x + this.size >= window.innerWidth) {
+                    this.dx *= -1;
+                }
+                if (this.y <= 0 || this.y + this.size >= window.innerHeight) {
+                    this.dy *= -1;
+                }
+                
+                // Update DOM element position
+                this.img.style.left = this.x + 'px';
+                this.img.style.top = this.y + 'px';
+            }
+        }
+
+        // Load and initialize images
+        window.onload = async function() {
+            const bouncingImages = [];
+            let knownImageIds = new Set();
+            
+            // Add background polling function
+            async function updateBackground() {
+                try {
+                    const eventSource = new EventSource('/background_path');
+                    eventSource.onmessage = (event) => {
+                        const backgroundUrl = event.data;
+                        console.log(backgroundUrl);
+                        document.body.style.backgroundImage = `url('${backgroundUrl}')`;
+                    };
+                    eventSource.onerror = (error) => {
+                        console.error('EventSource failed:', error);
+                        eventSource.close();
+                    };
+                } catch (error) {
+                    console.error('Failed to setup background updates:', error);
+                }
+            }
+            
+            // Initial background load
+            await updateBackground();
+            
+            // Poll for background changes every 5 seconds
+            // setInterval(updateBackground, 5000);
+            
+            async function loadNewImages() {
+                const response = await fetch('/image_ids');
+                const imageIds = await response.json();
+                
+                // Add only new images
+                imageIds.forEach(filename => {
+                    if (!knownImageIds.has(filename)) {
+                        const src = `/assets/drawings/${filename}`;
+                        const img = new BouncingImage(src, document.body);
+                        img.size *= 2; // Double the size
+                        img.img.style.width = img.size + 'px';
+                        bouncingImages.push(img);
+                        knownImageIds.add(filename);
+                    }
+                });
+            }
+            
+            // Initial load
+            await loadNewImages();
+            
+            // Check for new images every 5 seconds
+            setInterval(loadNewImages, 5000);
+            
+            // Animation loop
+            function animate() {
+                bouncingImages.forEach(img => img.update());
+                requestAnimationFrame(animate);
+            }
+            
+            animate();
+        };
+    </script>
+</body>
+</html>
