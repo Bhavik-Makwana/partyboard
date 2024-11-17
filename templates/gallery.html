@@ -138,18 +138,37 @@
             // Add background polling function
             async function updateBackground() {
                 try {
-                    const eventSource = new EventSource('/background_path');
-                    eventSource.onmessage = (event) => {
+                    // Close any existing EventSource connection
+                    if (window.backgroundEventSource) {
+                        window.backgroundEventSource.close();
+                    }
+
+                    // Create new EventSource and store it globally
+                    window.backgroundEventSource = new EventSource('/background_path');
+                    
+                    // Add more detailed logging
+                    window.backgroundEventSource.onopen = (event) => {
+                        console.log('EventSource connection opened:', event);
+                    };
+
+                    window.backgroundEventSource.onmessage = (event) => {
                         const backgroundUrl = event.data;
-                        console.log(backgroundUrl);
+                        console.log('Received background update:', backgroundUrl);
                         document.body.style.backgroundImage = `url('${backgroundUrl}')`;
                     };
-                    eventSource.onerror = (error) => {
-                        console.error('EventSource failed:', error);
-                        eventSource.close();
+
+                    window.backgroundEventSource.onerror = (error) => {
+                        console.error('EventSource error:', error);
+                        // Attempt to reconnect after 5 seconds
+                        setTimeout(() => {
+                            console.log('Attempting to reconnect EventSource...');
+                            updateBackground();
+                        }, 5000);
                     };
                 } catch (error) {
                     console.error('Failed to setup background updates:', error);
+                    // Attempt to reconnect after 5 seconds
+                    setTimeout(updateBackground, 5000);
                 }
             }
             
