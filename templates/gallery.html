@@ -35,27 +35,6 @@
             z-index: 1;
         }
 
-        /* Add Santa's sleigh */
-        body::before {
-            content: 'Merry Christmas! 🎅🛷🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌🦌 Merry Christmas! ';
-            font-family: 'Arial', sans-serif;
-            color: red;
-            position: absolute;
-            font-size: 40px;
-            animation: flyAcross 20s linear infinite;
-            white-space: nowrap;  /* Keep emojis in a single line */
-        }
-
-        @keyframes flyAcross {
-            0% {
-                left: -50%;
-                top: 15%;
-            }
-            100% {
-                left: 100%;
-                top: calc(15% + var(--santa-offset, 0px));
-            }
-        }
 
         /* Update bouncing-image style to include glow effect */
         .bouncing-image {
@@ -75,12 +54,50 @@
             z-index: 1000;
             pointer-events: none;
         }
+
+        /* Add snowflake animation keyframes */
+        @keyframes fall {
+            from {
+                transform: translateY(-10px);
+            }
+            to {
+                transform: translateY(100vh);
+            }
+        }
+
+        .snowflake {
+            position: fixed;
+            color: white;
+            pointer-events: none;
+            z-index: 9999;
+            opacity: 0.8;
+            text-shadow: 0 0 3px rgba(255, 255, 255, 0.3);
+        }
     </style>
 </head>
 <body>
     <!-- Add watermark div -->
     <div class="watermark">PartyBoard</div>
+    
+    <!-- Add snowfall container -->
+    <div id="snowfall"></div>
+
     <script>
+        class Snowflake {
+            constructor(container) {
+                this.element = document.createElement('div');
+                this.element.className = 'snowflake';
+                this.element.innerHTML = '•';
+                this.element.style.fontSize = (Math.random() * 8 + 4) + 'px';
+                this.element.style.position = 'absolute';
+                this.element.style.left = Math.random() * window.innerWidth + 'px';
+                this.element.style.top = -10 + 'px';
+                this.element.style.animation = 'fall linear 10s infinite';
+                this.element.style.animationDelay = Math.random() * 10 + 's';
+                container.appendChild(this.element);
+            }
+        }
+
         class BouncingImage {
             constructor(src, container) {
                 this.img = new Image();
@@ -225,6 +242,14 @@
             }
             
             animate();
+
+            // Add snowflake creation code at the start of window.onload
+            const snowfallContainer = document.getElementById('snowfall');
+            const NUMBER_OF_SNOWFLAKES = 50;  // Adjust this number for more/less snowflakes
+            
+            for (let i = 0; i < NUMBER_OF_SNOWFLAKES; i++) {
+                new Snowflake(snowfallContainer);
+            }
         };
     </script>
 </body>
