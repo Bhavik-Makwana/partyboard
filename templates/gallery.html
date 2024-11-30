@@ -88,7 +88,7 @@
                 this.element = document.createElement('div');
                 this.element.className = 'snowflake';
                 this.element.innerHTML = '•';
-                this.element.style.fontSize = (Math.random() * 8 + 4) + 'px';
+                this.element.style.fontSize = (Math.random() * 12 + 8) + 'px';
                 this.element.style.position = 'absolute';
                 this.element.style.left = Math.random() * window.innerWidth + 'px';
                 this.element.style.top = -10 + 'px';
@@ -115,6 +115,9 @@
                 
                 // Random size between 50 and 150 pixels
                 this.size = 50 + Math.random() * 100;
+                
+                // Add random z-index between 1 and 100
+                this.img.style.zIndex = Math.floor(Math.random() * 100) + 1;
                 
                 this.img.style.width = this.size + 'px';
                 this.img.style.height = 'auto';
